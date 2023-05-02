@@ -1,0 +1,240 @@
+---
+title: "DAB501 Final Project"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+## Student Information
+
+-   Name:
+    -   Vikrant Siwach
+    -   Rituraj Borah
+    -   Ikram Patel
+-   ID:
+    -   0824836
+    -   0825448
+    -   0822315
+
+## Instructions
+
+Follow the instructions on the handout provided.
+
+## Packages and Data
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(tinytex)
+options(scipen = 999)
+```
+
+```{r}
+#importing data
+
+#bal_cit_data <- read.csv("Baltimore_City_Employee_Salaries.csv")
+bal_cit_data <- read.csv("C:/Users/hp/Downloads/Baltimore_City_Employee_Salaries.csv")
+
+bal_cit_data_frame <-data.frame(bal_cit_data)
+
+#Generating Sectors/categories from Agencies
+
+defence  <- c('A99','A64','A38','A54','A11','BPD','A08','A51','A26','A57','R01','D01')
+
+public_works <- c('A50','A90','A04','A06','A49','B70','A67','C90','A70','A41','B49','A84','A68','B68','P04')
+
+govt <- c('A03','A29','A31','A75','A40','A09','A30','A10','A01','A91','A02','A37','A33','A52','W07','A73','A35','A28','A86')
+
+others <- c('A85','A83','A19','A46','A39','W08','W03','SCS','A51','A44','P83','U01','A65','P65')
+
+finance <- c('A24','A17','A32','A15','A14','A23','A18','A16','A12','A88','A53')
+
+bal_cit_data_frame$sector <-
+
+  as.factor(ifelse(bal_cit_data_frame$agencyID %in% defence, 'defence',
+
+                     ifelse(bal_cit_data_frame$agencyID %in% public_works, 'public_works',
+
+                     ifelse(bal_cit_data_frame$agencyID %in% govt, 'govt',
+
+                     ifelse(bal_cit_data_frame$agencyID %in% others, 'others','finance')))))
+
+
+#Cleaning data
+
+bal_cit_data_frame_new<-bal_cit_data_frame[is.na(as.numeric(bal_cit_data_frame$middleInitial)),]
+
+bal_cit_data_frame_final <- bal_cit_data_frame_new[!is.na(bal_cit_data_frame_new$hireDate),]
+
+bal_cit_data_frame_final$hireDate<-as.Date(bal_cit_data_frame_final$hireDate)
+
+bal_cit_data_frame_final$hire_year <- format(bal_cit_data_frame_final$hireDate,format= "%Y")
+
+bal_cit_data_frame_final$hire_year <- as.numeric(format(bal_cit_data_frame_final$hireDate,format= "%Y"))
+
+#Removing 'FY' from the Fiscal Year data
+
+bal_cit_data_frame_final$fiscalYear <- as.factor(gsub("FY","",bal_cit_data_frame_final$fiscalYear))
+
+# segregating gross pay into Salary classes
+
+breaks <- c(0,35000,70000,105000,140000,373111)
+
+bal_cit_data_frame_final$gross_range <- cut(bal_cit_data_frame_final$grossPay,breaks,labels=c("verylow","low","medium","High","very High"),include.lowest = TRUE)
+
+# segregating annual pay into Salary classes
+
+annual_break <- c(0,35000,70000,105000,140000,280000)
+
+bal_cit_data_frame_final$annual_range <- cut(bal_cit_data_frame_final$annualSalary,annual_break,labels=c("Very Low (0-35K)","Low (35K-70K)","Medium (70K-105K)","High (105K-140K)","Very High (>140K)"),include.lowest = TRUE)
+
+#Filtering data to include employees with Annual and Gross Salaries greater than $10,000
+bal_cit_data_frame_regression <- subset(bal_cit_data_frame_final, annualSalary >= 10000 & grossPay >= 10000)
+```
+
+### Dataset Description:
+
+The above dataset includes Baltimore City employee details like name, jobclass, department, annual salaries, gross pay etc. from fiscal year 2011 through last fiscal year. Out of those, we are planning to use below two variables to design our linear regression model, post our analysis.
+
+-   **annualSalary**: The employee's base annual salary for the fiscal year.
+
+-   **grossPay**: The total sum of compensation the employee received during the fiscal year.
+
+## MODELING: Gross Salary\~Annual Salary
+
+### Question 1
+
+Explanatory variable = Annual Salary (annualSalary)
+
+### Question 2
+
+Response variable = Gross Salary (grossPay)
+
+### Question 3
+
+#### Identifying correlation coefficient
+
+```{r}
+cor(bal_cit_data_frame_regression$annualSalary,bal_cit_data_frame_regression$grossPay)
+```
+
+The correlation coefficient(**0.8530474**) indicates that there is a positive and strong relation between Annual Salary and Gross Salary. As such, we will be considering them for our linear regression model.
+
+#### Scatterplot of Gross Salary vs Annual Salary
+
+```{r}
+ggplot(bal_cit_data_frame_regression, aes(x = annualSalary, y = grossPay)) +
+  geom_point() + 
+  geom_smooth(se=FALSE) +
+  geom_hline(yintercept = 0) + labs(title = "Annual vs Gross salary of Employees",x = "Annual Salary (in dollars)", y = "Gross Salary (in dollars)") + theme_bw()
+```
+
+In Addition to correlation coefficient, the above Scatterplot also depicts that there exists a positive relationship between Annual Salary and Gross Salary
+
+```{r}
+regr<- lm(formula = grossPay~annualSalary ,data=bal_cit_data_frame_regression)
+
+summary(regr)
+```
+
+From the linear model, we get the following results:
+
+**Slope = 1.12**
+
+**Intercept = -2027**
+
+### Question 4
+
+The equation for the regression line is:\
+***Gross Salary = -2027 + 1.12 x (Annual Salary)***
+
+### Question 5
+
+Predicted value of our Explanatory variable becomes equal to intercept (i.e, -2027), when the response variable (Annual Salary) is zero.
+
+          For Annual Salary = 0, then
+
+               Gross Salary = -2027 (in dollars)
+
+This concludes that for any individual with zero annual Salary will have gross salary as \$ -2027.
+
+### Question 6
+
+The equation for the regression line is:\
+***Gross Salary = -2027 + 1.12 x (Annual Salary)***
+
+As negative gross salary is not a possible scenario for an unpaid employed individual. We state that intercept for our case doesn't relate to any significant value. In a possible situation, a person having no annual salary would not have gross salary.
+
+### Question 7
+
+As observed from equation of regression line,
+
+Slope = 1.12
+
+A slope of 1.12 means for every dollar increase in annual salary, on average, gross salary of any individual will have an increase of \$1.12.
+
+## MODEL DIAGNOSTICS
+
+### Question 1
+
+Creating the data columns for predicted value of Gross Salary and their respective residuals.
+
+```{r}
+#using equation of linear regression model, identifying all predicted values
+Gross_predict = (1.116*bal_cit_data_frame_regression$annualSalary) - 2027
+
+#extracting residuals from our predicted values
+Resid_cl_regr <- bal_cit_data_frame_regression$grossPay - Gross_predict
+
+#Creating a dataframe column of predicted values and their respective residuals
+bal_cit_data_frame_regression <- bal_cit_data_frame_regression %>%
+ mutate(Gross_predict = Gross_predict,
+Resid_cl_regr = Resid_cl_regr)
+
+bal_cit_data_frame_regression %>% select(annualSalary, grossPay, Gross_predict, Resid_cl_regr)
+```
+
+### Question 2
+
+```{r}
+ggplot(bal_cit_data_frame_regression, aes(x = annualSalary, y = Resid_cl_regr)) + geom_point()+ 
+  geom_hline(yintercept = 0, colour = 'blue') + labs(title = "Annual Salary vs Residual values",x = "Annual Salary (in dollars)", y = "Residuals (in dollars)") + theme_bw()
+```
+
+There is no apparent pattern visible in the residual plot above. This means that a linear model is appropriate to describe the relationship between Gross Salary and Annual Salary, that is, **the condition of Linearity has been met**.
+
+### Question 3
+
+```{r}
+#Nearly normal Residual
+ggplot(bal_cit_data_frame_regression) + geom_histogram(mapping = aes(x= Resid_cl_regr),bins = 15) + geom_vline(xintercept = 0) + labs(x = "Residual (in dollars)", y = "Count")
+```
+
+Based on the histogram above, the residual distribution is a unimodal & symmetric and hence, appear to be nearly normal so **the condition of nearly normal residuals is met.**
+
+### Question 4
+
+```{r}
+#Constant variability Check
+ggplot(bal_cit_data_frame_regression, aes(x = annualSalary, y = Resid_cl_regr)) + geom_point()+ 
+  geom_hline(yintercept = 0, colour = 'red') +
+  geom_hline(yintercept = 200000, colour = 'blue') +
+  geom_hline(yintercept = -200000, colour = 'blue')  + labs(title = "Annual Salary vs Residual values",x = "Annual Salary (in dollars)", y = "Residuals (in dollars)")
+```
+
+Since the residuals between the two horizontal blue lines appear to be moving funneling out and moving away from 0 with an increase in annual salary and there seems to be an obvious trend that alters the variability, as annual salary increases. Hence, **the condition of constant variability has not met.**
+
+## CONCLUSION
+
+### Question 1
+
+The equation for the linear regression model is:\
+***Gross Salary = -2027 + 1.12 x (Annual Salary)***
+
+Based on the results of Model Diagnostics, since all three linearity requirements have not been satisfied, we can say that this model is not linear however, it still has a strong relationship which the model display between gross salary and annual salary as per correlation coefficient and R-squared value. Thus this model can be used to anticipate an employee's gross salary based on annual salary.

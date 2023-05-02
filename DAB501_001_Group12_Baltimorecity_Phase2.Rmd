@@ -1,0 +1,509 @@
+---
+title: \LARGE Baltimore City's Employee Data - Phase 2
+output:
+  html_document: 
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+# **Team/Group Introduction - Group 12 - Section 001**
+
+1.  Ikram Patel
+
+2.  Rituraj Borah
+
+3.  Vikrant Siwach
+
+# **Academic Integrity - Declaration**
+
+We, [**Ikram Patel**]{.underline}, [**Rituraj Borah**]{.underline}, and [**Vikrant Siwach**]{.underline}, hereby state that we have not communicated with or gained information in any way from any person or resource that would violate the College's academic integrity policies, and that all work presented is our own. In addition, we also agree not to share our work in any way, before or after submission, that would violate the College's academic integrity policies.
+
+# **Versions of R and Rstudio**
+
+### **R Version**
+
+```{r}
+#get R version
+print(R.version.string)
+```
+
+### **Rstudio Version**
+
+RStudio 2022.12.0+353 "Elsbeth Geranium" Release (7d165dcfc1b6d300eb247738db2c7076234f6ef0, 2022-12-03) for Windows
+
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) RStudio/2022.12.0+353 Chrome/102.0.5005.167 Electron/19.1.3 Safari/537.36
+
+## **Packages used in the project**
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(dplyr)
+library(corrr)
+library(lubridate)
+library(scales)
+library("viridis")
+library(RColorBrewer)
+library(transformr)
+library(stringr)
+library(treemapify)
+library(ggrepel)
+```
+
+## **Importing data from file**
+
+```{r}
+bal_cit_data <- read.csv("C:/Users/ikram/OneDrive/Documents/DAB_501/Data_transformation/ProjectR_Phase2/Baltimore_City_Employee_Salaries.csv")
+
+bal_cit_data_frame <-data.frame(bal_cit_data)
+```
+
+#### 
+
+# **1. Univariate Analysis**
+
+## ***1.1 Numerical Variable***
+
+#### **1.1.1 Data Cleaning and Filtering**
+
+```{r}
+#Cleaning data
+
+bal_cit_data_frame_new<-bal_cit_data_frame[is.na(as.numeric(bal_cit_data_frame$middleInitial)),]
+
+bal_cit_data_frame_final <- bal_cit_data_frame_new[!is.na(bal_cit_data_frame_new$hireDate),]
+
+bal_cit_data_frame_final$hireDate<-as.Date(bal_cit_data_frame_final$hireDate)
+
+bal_cit_data_frame_final$hire_year <- format(bal_cit_data_frame_final$hireDate,format= "%Y")
+
+bal_cit_data_frame_final$hire_year <- as.numeric(format(bal_cit_data_frame_final$hireDate,format= "%Y"))
+
+#Removing 'FY' from the Fiscal Year data
+
+bal_cit_data_frame_final$fiscalYear <- as.factor(gsub("FY","",bal_cit_data_frame_final$fiscalYear))
+
+#Filtering data to exclude hiring years less than 2000
+
+bal_cit_data_frame_final_filtered <- bal_cit_data_frame_final %>%
+
+  filter(hire_year>=2000 & annualSalary >0)
+
+# segregating gross pay into Salary classes
+
+breaks <- c(0,35000,70000,105000,140000,373111)
+
+bal_cit_data_frame_final$gross_range <- cut(bal_cit_data_frame_final$grossPay,breaks,labels=c("Very Low","Low","Medium","High","Very High"),include.lowest = TRUE)
+options(scipen=999)
+```
+
+#### **1.1.2 Plot 1 :** **Annual salary of Employees**
+
+```{r}
+ggplot(bal_cit_data_frame_final_filtered) + geom_histogram(mapping = aes(x= annualSalary),bins = 15) + labs(title = "Annual Salary of Employees",x = "Annual Salary (in thousands)", y = "Count of Employees") + scale_x_continuous(breaks = seq(0, max(bal_cit_data_frame_final_filtered$annualSalary), by = 50000),labels = paste0("$", seq(10000, 276375, by = 50000)/1000)) + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.1.3 Identify and handle Outliers**
+
+The analysis has focused on annual employee salaries from 2000 to 2021, with no consideration given to past data ranging from 1900 to 2000 as the last 20 years data is sufficient for visualization purpose.
+
+During the analysis, a small number of employees were observed with salaries exceeding [**\$160,000, which appear to be outliers**]{.underline}. However, these outliers have not been excluded from the analysis as they are financial data and could potentially contain important information.
+
+#### **1.1.4 Shape of data**
+
+Since, from the above graph (Plot1), it is visible that the data has a clear peak or central tendency, with most of the data clustered around the peak value, the shape of the data can be described as [**Unimodal**]{.underline}.
+
+#### **1.1.5 Data transformation**
+
+For our data, transformation is not necessary since the data being analyzed does not have long tails and is not overly dispersed as visible in above graph(Plot1), indicating that it does not deviate significantly from a normal distribution. Therefore, there is no need to transform the data to achieve a normal distribution or to reduce the impact of outliers. Transforming the data in this case could potentially introduce unnecessary complexity and could even distort the underlying patterns in the data, leading to erroneous conclusions.
+
+#### **1.1.6 Calculating appropriate Central tendency**
+
+```{r}
+median(bal_cit_data_frame_final_filtered$annualSalary)
+```
+
+The graph (Plot1) shows that the numerical variable (Annual salary) data is skewed to the right, and therefore the [**Median is chosen as the standard measure of central tendency**]{.underline} since it is useful in summarizing large datasets by displaying the central value of the data.
+
+Since the Median is the appropriate measure of central tendency as per our data distribution in graph (Plot 1). A commonly used [**measure of spread for median central tendency is the interquartile range (IQR)**]{.underline}. The IQR is the range between the first quartile (Q1) and the third quartile (Q3) of a dataset. It provides a measure of the spread of the middle 50% of the data, which is where the median is located.
+
+```{r}
+q_1 <- quantile(bal_cit_data_frame_final_filtered$annualSalary,0.25)
+
+q_3 <- quantile(bal_cit_data_frame_final_filtered$annualSalary,0.75)
+
+iqr <- q_3 - q_1
+```
+
+**Visualizing Median & IQR**
+
+```{r}
+ggplot(bal_cit_data_frame_final_filtered) + geom_histogram(mapping = aes(x= annualSalary),bins = 15) +
+  geom_vline(xintercept = IQR(bal_cit_data_frame_final_filtered$annualSalary), color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = median(bal_cit_data_frame_final_filtered$annualSalary), color = "green", linetype = "dashed", size = 1) + labs(title = "Annual salary of Employees",x = "Annual Salary (in thousands)", y = "Count of Employees") + scale_x_continuous(breaks = seq(0, max(bal_cit_data_frame_final_filtered$annualSalary), by = 50000),labels = paste0("$", seq(10000, 276375, by = 50000)/1000)) + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+```
+
+The graph displays the relationship between the annual salary and the number of employees in Baltimore city. The median and interquartile range (IQR) have been plotted on the graph. It is evident from the graph that the median annual salary is greater than the IQR.
+
+#### **1.1.7 Plot 2 : Gross salary of Employees**
+
+```{r}
+ggplot(bal_cit_data_frame_final_filtered) + geom_histogram(mapping = aes(x= grossPay),bins = 15) + labs(title = "Gross salary of Employees",x = "Gross Salary(in thousands)", y = "Count of Employees") + scale_x_continuous(breaks = seq(0, max(bal_cit_data_frame_final_filtered$grossPay), by = 50000),labels = paste0("$", seq(10000, 275000, by = 50000)/1000)) + theme_bw() + scale_y_continuous(breaks = seq(0,30000, by = 5000)) + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.1.8 Identify and handle Outliers**
+
+The analysis has focused on gross salaries of employees from Hiring years 2000 to 2021, with no consideration given to past data ranging from 1900 to 2000 as the last 20 years data is sufficient for visualization purpose.
+
+During the analysis, a small number of employees were observed with salaries exceeding [**\$175,000, which appear to be outliers**]{.underline}. However, these outliers have not been excluded from the analysis as they are financial data and could potentially contain important information.
+
+#### **1.1.9 Shape of data**
+
+Since, from the above graph (Plot2), it is visible that the data has a clear peak or central tendency, with most of the data clustered around the peak value, the shape of the data can be described as [**Unimodal**]{.underline}.
+
+#### **1.1.10 Data transformation**
+
+For our data, transformation is not necessary since the data being analyzed does not have long tails and is not overly dispersed as visible in above graph(Plot2), indicating that it does not deviate significantly from a normal distribution. Therefore, there is no need to transform the data to achieve a normal distribution or to reduce the impact of outliers. Transforming the data in this case could potentially introduce unnecessary complexity and could even distort the underlying patterns in the data, leading to erroneous conclusions.
+
+#### **1.1.11 Calculating appropriate Central tendency**
+
+```{r}
+median(bal_cit_data_frame_final_filtered$grossPay)
+```
+
+The graph (Plot2) shows that the numerical variable (Gross salary) data is skewed to the right, and therefore the [**Median is chosen as the standard measure of central tendency**]{.underline} since it is useful in summarizing large datasets by displaying the central value of the data.
+
+Since the Median is the appropriate measure of central tendency as per our data distribution in graph (Plot 2). A commonly used [**measure of spread for median central tendency is the interquartile range (IQR)**]{.underline}. The IQR is the range between the first quartile (Q1) and the third quartile (Q3) of a dataset. It provides a measure of the spread of the middle 50% of the data, which is where the median is located.
+
+```{r}
+q_1 <- quantile(bal_cit_data_frame_final_filtered$grossPay,0.25)
+
+q_3 <- quantile(bal_cit_data_frame_final_filtered$grossPay,0.75)
+
+iqr <- q_3 - q_1
+```
+
+**Visualizing Median and IQR**
+
+```{r}
+ggplot(bal_cit_data_frame_final_filtered) + geom_histogram(mapping = aes(x= grossPay),bins = 15) +
+  geom_vline(xintercept = IQR(bal_cit_data_frame_final_filtered$grossPay), color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = median(bal_cit_data_frame_final_filtered$grossPay), color = "green", linetype = "dashed", size = 1) + labs(title = "Gross salary of Employees",x = "Gross Salary (in thousands)", y = "Count of Employees") + scale_x_continuous(breaks = seq(0, max(bal_cit_data_frame_final_filtered$grossPay), by = 50000),labels = paste0("$", seq(10000, 275000, by = 50000)/1000)) + theme_bw() + scale_y_continuous(breaks = seq(0,30000, by = 5000)) + theme(plot.title = element_text(hjust = 0.5))
+```
+
+The graph displays the relationship between the gross salary and the number of employees in Baltimore city. The [**median and interquartile range (IQR)**]{.underline} have been plotted on the graph. It is evident from the graph that the [**median gross salary is greater than the IQR**]{.underline}.
+
+#### **1.1.12 Plot 3 : Gross salary of Employees in Defense Sector**
+
+```{r}
+#Generating additional categorical variable Sectors to segregate the agencies into 5 distinct sectors
+defense  <- c('A99','A64','A38','A54','A11','BPD','A08','A51','A26','A57','R01','D01')
+public_works <- c('A50','A90','A04','A06','A49','B70','A67','C90','A70','A41','B49','A84','A68','B68','P04')
+govt <- c('A03','A29','A31','A75','A40','A09','A30','A10','A01','A91','A02','A37','A33','A52','W07','A73','A35','A28','A86')
+others <- c('A85','A83','A19','A46','A39','W08','W03','SCS','A51','A44','P83','U01','A65','P65')
+finance <- c('A24','A17','A32','A15','A14','A23','A18','A16','A12','A88','A53')
+
+bal_cit_data_frame_final_filtered$sector <- 
+  as.factor(ifelse(bal_cit_data_frame_final_filtered$agencyID %in% defense, 'defense',
+                   ifelse(bal_cit_data_frame_final_filtered$agencyID %in% public_works, 'public_works',
+                          ifelse(bal_cit_data_frame_final_filtered$agencyID %in% govt, 'govt',
+                                 ifelse(bal_cit_data_frame_final_filtered$agencyID %in% others, 'others','finance')))))
+
+sec_defense <- bal_cit_data_frame_final_filtered %>%
+  filter(sector == "defense")
+```
+
+```{r}
+ggplot(sec_defense) + geom_histogram(mapping = aes(x= grossPay),bins = 15) + labs(title = "Gross salary of Employees in Defense Sector",x = "Gross Salary (in thousands)", y = "Count of Employees") + scale_x_continuous(breaks = seq(0, max(bal_cit_data_frame_final_filtered$grossPay), by = 50000),labels = paste0("$", seq(10000, 275000, by = 50000)/1000)) + theme_bw() + geom_vline(xintercept = mean(sec_defense$grossPay), color = "green", linetype = "dashed", size = 1) + geom_vline(xintercept = median(sec_defense$grossPay), color = "red", linetype = "dashed", size = 1)  + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.1.13 Identify and handle Outliers**
+
+The analysis has focused on gross salaries of employees from Hiring years 2000 to 2021 concentrating primarily on Defense sector, while excluding historical data ranging from 1900 to 2000 as the last 20 years data is sufficient for visualization purpose.
+
+During the analysis, a small number of employees were observed with salaries exceeding [**\$195,000, which appear to be outliers**]{.underline}. However, these outliers have not been excluded from the analysis as they are financial data and could potentially contain important information.
+
+#### **1.1.14 Shape of data**
+
+Since, from the above graph (Plot3), it is visible that the data has a clear peak or central tendency, with most of the data clustered around the peak value, the shape of the data can be described as [**Unimodal**]{.underline}.
+
+#### **1.1.15 Data transformation**
+
+For our data, transformation is not necessary since the data being analyzed does not have long tails and is not overly dispersed as visible in above graph(Plot2), indicating that it does not deviate significantly from a normal distribution. Therefore, there is no need to transform the data to achieve a normal distribution or to reduce the impact of outliers. Transforming the data in this case could potentially introduce unnecessary complexity and could even distort the underlying patterns in the data, leading to erroneous conclusions.
+
+#### **1.1.16 Calculating appropriate Central tendency**
+
+```{r}
+mean(sec_defense$grossPay)
+```
+
+The graph (Plot3) shows that the numerical variable (Gross salary) data is symmetric, and therefore the [**Mean is chosen as the standard measure of central tendency**]{.underline} since it is useful in summarizing large datasets by displaying the central value of the data.
+
+Since the Mean is the appropriate measure of central tendency as per our data distribution in graph (Plot 3). A commonly used [**measure of spread for mean central tendency is the standard deviation(SD)**]{.underline}. which is a measure of how much the data values are dispersed around the mean. The standard deviation is calculated by taking the square root of the variance, which is the average of the squared differences between each data point and the mean.
+
+```{r}
+sd_dev = sqrt(sum((sec_defense$grossPay - mean(sec_defense$grossPay))^2) / (nrow(sec_defense)-1))
+```
+
+**Visualizing Median and Standard Deviation**
+
+```{r}
+ggplot(sec_defense) + geom_histogram(mapping = aes(x= grossPay),bins = 15) +
+  geom_vline(xintercept = mean(sec_defense$grossPay), color = "red", linetype = "dashed", size = 1) +
+  geom_vline(xintercept = sd_dev, color = "green", linetype = "dashed", size = 1) + labs(title = "Gross salaries of Employees in Defense Sector",x = "Gross Salary (in thousands)", y = "Count of Employees") + scale_x_continuous(breaks = seq(0, max(sec_defense$grossPay), by = 50000),labels = paste0("$", seq(10000, 275000, by = 50000)/1000)) + theme_bw() + scale_y_continuous(breaks = seq(0,30000, by = 2500)) + theme(plot.title = element_text(hjust = 0.5))
+```
+
+The graph displays the relationship between the gross salary and the number of employees in Defense sector. The [**Mean and Standard Deviation (SD) have been plotted on the graph**]{.underline}. It is evident from the graph that the [**Mean Gross Salary is greater than the SD**]{.underline}, with a difference between them of approximately \$40375.
+
+## **1.2 Categorical Variable**
+
+#### **1.2.1 Plot 1.1 : Count of Employees hired between the year 2011 and 2021**
+
+```{r}
+bal_cit_data_frame_final_2011 <- bal_cit_data_frame_final_filtered %>%
+  filter(hire_year>=2011)
+```
+
+```{r}
+ggplot(bal_cit_data_frame_final_2011) + geom_bar(mapping = aes(x= hire_year)) + ggtitle("Employees hired between the year 2011 and 2021") + labs(y= "Count of Employees", x = "Hiring Year") + theme(legend.position = "none") + theme_bw() + scale_y_continuous(breaks = seq(0,6000, by = 1000))  + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.2.2 Plot 1.2 : Proportion of Employees hired between the year 2011 and 2021**
+
+```{r}
+bal_cit_data_frame_final_2011$hire_year <- as.factor(bal_cit_data_frame_final_2011$hire_year)
+
+#Pie Chart with percentage
+# create a pie chart with slice labels
+plotdata <- bal_cit_data_frame_final_2011 %>%
+count(hire_year) %>%
+arrange(desc(hire_year)) %>%
+mutate(perc = round(n*100/sum(n),0),
+lab.ypos = cumsum(perc) - 0.5*perc)
+
+plotdata$label <- paste0(round(plotdata$perc), "%")
+plotdata$label <- paste0(plotdata$perc, "%")
+
+
+ggplot(plotdata,aes(x = "",y = perc,fill = hire_year)) +
+geom_bar(width = 1,stat = "identity",color = "black") +
+coord_polar("y",start = 0,direction = -1) + theme_void() + ggtitle("Employee distribution across Hiring years 2011 and 2021") + scale_y_continuous(breaks = plotdata$lab.ypos, labels = plotdata$hire_year) + geom_label_repel(data = plotdata,
+                   aes(y = lab.ypos, label = label),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE)
+```
+
+#### **1.2.3 Unusual observations**
+
+The graph illustrates a gradual decrease in the number of employees hired from over 6000 in 2011 to about 3500 in 2016, [***with an unusual increase in 2017***]{.underline}, followed by another decline till 2021.
+
+#### **1.2.4 Too few/too many unique values**
+
+The smallest bar on the graph indicates that there are [***significantly fewer unique values in 2021***]{.underline} compared to other years.
+
+#### **1.2.5 Plot 2.1 : Count of Employees across the Fiscal years 2011 and 2021**
+
+```{r}
+ggplot(bal_cit_data_frame_final_filtered) + geom_bar(mapping = aes(x= fiscalYear)) + ggtitle("Number of employees between Fiscal year 2011 and 2021") + labs(y= "Count of Employees", x = "Fiscal Year") + scale_y_continuous(labels =comma_format(decimal.mark = ",")) + theme(legend.position = "none") + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.2.6 Plot 2.2 : Proportion of Employees hired between Fiscal year 2011 and 2021**
+
+```{r}
+#Tree Chart
+plotdata <- bal_cit_data_frame_final_filtered %>%
+count(fiscalYear)
+
+
+ggplot(plotdata, aes(fill = fiscalYear, area = n,label = paste(fiscalYear,"\n",paste0(round(n*100/sum(n), 0),"%")), subgroup = fiscalYear)) + geom_treemap() + geom_treemap_subgroup_border() + geom_treemap_text(colour = "white", place = "centre", fontface = "italic", min.size = 0) + labs(title = "Distribution of Employees across Fiscal Years") + theme(legend.position = "none") + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.2.7 Unusual observations**
+
+From the above illustrations, it is quite evident that over the fiscal years spanning from 2011 to 2019, the number of employees has exhibited a gradual increase, with a sharp rise in 2020. However, the subsequent fiscal year of 2021 has recorded an atypical decline.
+
+#### **1.2.8 Too few/too many unique values**
+
+The distribution of employee count across the fiscal years under consideration appears to be relatively uniform, with no apparent observations displaying significantly low or high values.
+
+#### **1.2.9 Plot 3.1 : Count of Employees across different Sectors**
+
+```{r}
+ggplot(bal_cit_data_frame_final_2011) + geom_bar(mapping = aes(x= sector)) + ggtitle("Number of employees across different Sectors") + labs(y= "Count of Employees", x = "Sectors") + theme(legend.position = "none") + theme_bw() + scale_y_continuous(breaks = seq(0,15000, by = 2500)) + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.2.10 Plot 3.2 : Proportion of Employees across different Sectors**
+
+```{r}
+# create a pie chart with slice labels
+plotdata <- bal_cit_data_frame_final_2011 %>%
+count(sector) %>%
+arrange(desc(sector)) %>%
+mutate(perc = round(n*100/sum(n), 0),
+ lab.ypos = cumsum(perc) - 0.5*perc)
+
+plotdata$label <- paste0(round(plotdata$perc), "%")
+
+ggplot(plotdata,aes(x = "", y = perc,fill = sector)) +
+geom_bar(width = 1, stat = "identity", color = "black") +
+ geom_text(aes(y = lab.ypos, label = label), color = "black") +
+ coord_polar("y",start = 0,direction = -1) +
+theme_void() + ggtitle("Employee distribution across different Sectors")  + theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### **1.2.11 Unusual observations**
+
+The graph reveals that in Baltimore city, the Finance sector is experiencing a notably low employee count, which is atypical compared to the significantly larger workforce in the Defense and Public Works sectors.
+
+#### **1.2.12 Too few/too many unique values**
+
+It is clear from the plot that the Finance sector has the lowest number of unique values compared to the other sectors.
+
+# **2. Bivariate Analysis**
+
+## ***2.1 Numerical vs Numerical***
+
+#### **2.1.1 Plot 1 : Average Annual salary of Employees across Hiring Years 2000 and 2021**
+
+```{r}
+avg_asal <- bal_cit_data_frame_final %>% 
+  filter(hire_year>2000) %>%
+  group_by(hire_year) %>%
+  summarise(mean_sal = mean(annualSalary))
+
+ggplot(avg_asal,aes(x = hire_year,y =mean_sal)) + geom_line() + geom_point() + labs(title = "Average Annual salary of Employees across Hiring Years 2000 and 2021",x = "Hiring Years", y = "Average Annual Salary (in thousands)") + scale_y_continuous(breaks = seq(35000,65000, by = 5000),labels = paste0("$", seq(35000, 65000, by = 5000)/1000)) + scale_x_continuous(breaks = seq(2000,2021, by = 2),labels = paste0(seq(2000,2021, by = 2))) + theme_bw()  + theme(plot.title = element_text(hjust = 0.5))
+
+cor(avg_asal$hire_year,avg_asal$mean_sal)
+```
+
+**Identifying Form, Direction and Strength of the continuous variable pair**
+
+Observing the plot, the form of the relationship is [**Non-Linear**]{.underline}. Furthermore, [**correlation co-efficient is -0.74**]{.underline} which reveals the **[direction is Negative]{.underline}** in nature and the strength of the relationship is [**Strong**]{.underline}.
+
+The graph (plot1) depicts that the average Annual Salary for Baltimore's employees has suffered a steep decline over the past two decades, dropping from approximately 62000 in 2000 to 35000 in 2021.[**The graph shows that Annual Salary has a Strong Negative Relation with each hiring year**]{.underline}.
+
+**Variability in the variable's relationship:**
+
+After analyzing the plot and correlation coefficient between Annual Salary and Hiring Year, we observed a [**strong negative correlation**]{.underline} between the two variables. This indicates that as Hiring Year increases, Annual Salary tends to decrease, and vice versa. The plot reveals a clear [**downward trend**]{.underline} in Annual Salary as Hiring Year increases, demonstrating a [**strong inverse/negative relationship**]{.underline} between the two variables.
+
+The correlation coefficient supports this finding, indicating a significant [**negative correlation**]{.underline} between Annual Salary and Hiring Year. This suggests that older employees tend to earn more than their newer counterparts, providing valuable insights for organizations in terms of compensation and career development strategies.
+
+#### **2.1.2 Plot 2 : Average Gross salary of Employees across Hiring Years 2000 and 2021**
+
+```{r}
+
+avg_gpay <- bal_cit_data_frame_final %>% 
+  filter(hire_year>2000) %>%
+  group_by(hire_year) %>%
+  summarise(mean_gsal = mean(grossPay))
+
+ggplot(avg_gpay,aes(x = hire_year,y =mean_gsal)) + geom_line() + geom_point() + labs(title = "Average Gross salary of Employees across Hiring Years 2000 and 2021",x = "Hiring Years", y = "Average Gross Salary (in thousands)") + scale_y_continuous(breaks = seq(10000,70000, by = 10000),labels = paste0("$", seq(10000, 70000, by = 10000)/1000)) + scale_x_continuous(breaks = seq(2000,2021, by = 2),labels = paste0(seq(2000,2021, by = 2))) + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+
+cor(avg_gpay$hire_year,avg_gpay$mean_gsal)
+```
+
+**Identifying Form, Direction and Strength of the continuous variable pair**
+
+Observing the plot, the form of the relationship is [**Non-Linear**]{.underline}. Furthermore, [**correlation co-efficient is -0.9**]{.underline} which reveals the [**direction is Negative**]{.underline} in nature and the strength of the relationship is [**Very Strong**]{.underline}.
+
+The graph (plot2) depicts that the average Gross Salary for Baltimore's employees has suffered a steep decline over the past two decades, dropping from approximately 65000 in 2000 to less than 10000 in 2021.The graph shows that Gross Salary has a [**Very Strong Negative Relation**]{.underline} with each hiring year.
+
+**Variability in the variable's relationship:**
+
+After analyzing the plot and correlation coefficient between Gross Salary and Hiring Year, we observed a [**very strong negative correlation**]{.underline} between the two variables. This indicates that as Hiring Year increases, Gross Salary tends to decrease, and vice-versa. The plot reveals a clear downward trend in Gross Salary as Hiring Year increases, demonstrating a [**very strong inverse/negative relationship**]{.underline} between the two variables.
+
+The correlation coefficient supports this finding, indicating a [**significant negative correlation**]{.underline} between Gross Salary and Hiring Year. This suggests that older employees tend to earn more than their newer counterparts, providing valuable insights for organizations in terms of compensation and career development strategies.
+
+#### **2.1.3 Plot 3 : Variation of Max and Median Gross salary across Hiring Years 2000 and 2021**
+
+```{r}
+m_gpay <- bal_cit_data_frame_final %>% 
+ filter(hire_year>2000) %>%
+ group_by(hire_year) %>%
+ summarise(max_sal = max(grossPay), med_sal = median(grossPay))
+
+
+ggplot(m_gpay) + geom_point(mapping = aes(x = hire_year,y =max_sal), color = "black") + geom_line(mapping = aes(x = hire_year,y =max_sal))  + geom_point(mapping = aes(x = hire_year,y =med_sal), color = "black") + geom_line(mapping = aes(x = hire_year,y =med_sal)) + labs(title = "Variation of Max and Median Gross salary across Hiring Years 2000 and 2021",x = "Hiring Years", y = "Salary (in thousands)") +  scale_x_continuous(breaks = seq(2000,2021, by = 2),labels = paste0(seq(2000,2021, by = 2))) + scale_y_continuous(breaks = seq(5000,300000, by = 30000),labels = paste0("$", seq(5000,300000, by = 30000)/1000)) + theme_bw() + annotate("text", x=2010, y=185000, label= "Max Salary Variation") + annotate("text", x=2010, y=30000, label= "Median Salary Variation") + theme(plot.title = element_text(hjust = 0.5))
+
+cor(m_gpay$hire_year,m_gpay$max_sal)
+cor(m_gpay$hire_year,m_gpay$med_sal)
+```
+
+**Identifying Form, Direction and Strength of the continuous variable pair**
+
+Observing the plot, the form of the relationship is [**Non-Linear**]{.underline}. Furthermore, [**correlation co-efficient is -0.12**]{.underline} which reveals the [**direction is Negative**]{.underline} in nature and the strength of the relationship is [**close to negligible**]{.underline}, hence, having no relation with each other.
+
+The graph (plot3) depicts that the Maximum Gross Salary for Baltimore's employees has faced a fluctuating trend over the past two decades, thus, showing both upward and downward trend consecutively.The graph shows that Maximum Gross Salary has No Relation with Hiring Years.
+
+**Variability in the variable's relationship:**
+
+After analyzing the plot and correlation coefficient between Maximum Gross Salary and Hiring Year, we observed [**negligible/no relation**]{.underline} between the two variables. This indicates that as Hiring Year increases, maximum of Gross Salary of employees varied uniquely. The plot reveals a clear [**non-linear**]{.underline} fluctuating trend (both upward and downward) in Maximum Gross Salary as Hiring Year increases, demonstrating negligible/no relation between the two variables.
+
+The correlation coefficient supports this finding, indicating zero relations between Maximum Gross Salary and Hiring Year. This suggests that maximum Gross Salary earned by employees doesn't depend on the year they got hired, providing valuable insights for organizations in terms of compensation and career development strategies.
+
+## ***2.2 Numerical vs Categorical***
+
+#### **2.2.1 Plot 1 : Gross salary of Employees across Hiring Years 2000 and 2021**
+
+```{r}
+p <- bal_cit_data_frame_final %>% 
+  filter(hire_year>2000)
+ggplot(p,aes(x = gross_range,y =hire_year)) + geom_boxplot() + labs(title = "Gross salary of Employees across Hiring Years 2000 and 2021",x = "Gross Salary range", y = "Hiring Years") + scale_y_continuous(breaks = seq(2000,2021, by = 3),labels = paste0(seq(2000,2021, by = 3))) + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+```
+
+**Identifying Form, Direction and Strength of the variable pair**
+
+Observing the plot, the form of the relationship is Linear. [*As correlation co-efficient can be calculated only for numerical or continuous variable, we will not be able to identify strength*]{.underline}. Further Observation also reveals that the direction of relationship is [**Negative**]{.underline} as there is slight decline in median of all salary class for Gross Pay as each hiring year passes, taking into consideration the order of salary classes.
+
+The graph (plot1) depicts that almost 75% of population of all salary classes got hired prior 2015. With each passing year, we observed that hiring of employees with low to medium salary class was higher than higher salary classes.
+
+**Variability in the variable's relationship:**
+
+After analyzing the plot between Gross Salary Class and Hiring Year, we observed that higher classes have a [**negative relation**]{.underline} with each passing hiring year while the lower classes shows a [**positive relation**]{.underline}.
+
+#### **2.2.2 Plot 2 : Gross salary of Employees across different sectors**
+
+```{r}
+p <- bal_cit_data_frame_final_filtered %>%
+  filter( hire_year>2010 , annualSalary>10000)
+
+ggplot(p,aes(x = sector,y =grossPay)) + geom_boxplot() + labs(title = "Gross salary of Employees across different sectors",x = "Sector", y = "Gross Salary (in thousands)") + scale_y_continuous(breaks = seq(10000,300000, by = 30000),labels = paste0("$", seq(10000, 300000, by = 30000)/1000)) + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+```
+
+**Identifying Form, Direction and Strength of the variable pair**
+
+Observing the plot, the form of the relationship is [**Linear**]{.underline}. [*As correlation co-efficient can be calculated only for numerical or continuous variable, we will not be able to identify strength*]{.underline}. Further Observation also reveals that the direction of relationship is [**negative**]{.underline} as there is very slight decline in median of all sectors in terms of their Gross Salary.
+
+The graph (plot2) depicts that majority of employees for all sectors fall under 100K Gross Salary with some unusual observations who have a comparatively higher salary bracket. Despite being portray as outliers, we will not be considering them as these employees can be designated with high job profiles in their respective sectors and the government might need their data for further analysis.
+
+**Variability in the variable's relationship:**
+
+After analyzing the plot between Sector and Gross Pay, we observed that sectors variability with their gross pay is [**very weak**]{.underline}. Among the sectors, defense sector has the highest overall gross pay while public works has the lowest.
+
+#### **2.2.3 Plot 3 : Distribution of Gross salary of Employees across different sectors**
+
+```{r}
+ggplot(bal_cit_data_frame_final_filtered, aes(x = grossPay, fill = sector)) + geom_density(alpha = 0.4) + labs(title = "Distribution of Gross salary of Employees across different sectors",x = "Gross Salary (in thousands)", y = "Distribution of Employees") + scale_x_continuous(breaks = seq(10000,300000, by = 30000),labels = paste0("$", seq(10000, 300000, by = 30000)/1000)) + theme_bw() + theme(plot.title = element_text(hjust = 0.5))
+```
+
+**Identifying Form, Direction and Strength of the variable pair**
+
+Observing the plot, the form of the relationship is [**Non-Linear**]{.underline}. [*As correlation co-efficient can be calculated only for numerical or continuous variable, we will not be able to identify strength*]{.underline}. Further Observation also reveals that the direction of relationship is [**Negative**]{.underline} as there is rapid decline in population of employees as the Gross Salary increases.
+
+The graph (plot3) depicts that defense sector has the highest overall gross pay with almost one-third of them lying in "above \$70,000 Gross pay" category which is not the same case for rest of the sectors.
+
+**Variability in the variable's relationship:**
+
+After analyzing the plot between Sector and Gross Pay, we observed that sectors variability with their gross pay is in [**Negative**]{.underline} direction. This plot suggests that majority of employees lie in the low-medium salary bracket for gross pay and only a few are left for all sectors who have a high gross pay. This statement can further be considered for the top designations of the respective sectors with high paying jobs.
+
+## **References:**
+
+<https://bookdown.org/yihui/rmarkdown-cookbook/rstudio-shortcuts.html>
+
+<https://rkabacoff.github.io/datavis/Univariate.html#tree-map>
+
+<https://r4ds.had.co.nz/model-building.html>
