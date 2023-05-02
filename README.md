@@ -1,4 +1,4 @@
-# Employment-Trends-Salary-Distribution
+# Employment-Trends-Salary-Distribution analysis using R
 This project deals with the analysis of the Baltimore City Employee dataset which can be used to identify and analyze workforce related issues or to check the proportion of residents working at specific agencies. The data also provides the distribution of Annual and Gross Salary of the employees across various departments.
 
 Background Motivation:
