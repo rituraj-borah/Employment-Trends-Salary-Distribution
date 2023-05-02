@@ -1,5 +1,5 @@
 # Employment-Trends-Salary-Distribution
-This project deals with the analysis of the Baltimore City Employee dataset which can be used to identify and analyze workforce related issues or to check the proportion of residents working at specific agencies. The data also reveals the employment cycle of city residents and its Annual and Gross Salary.
+This project deals with the analysis of the Baltimore City Employee dataset which can be used to identify and analyze workforce related issues or to check the proportion of residents working at specific agencies. The data also provides the distribution of Annual and Gross Salary of the employees across various departments.
 
 Background Motivation:
 Founded in 1700’s, Baltimore City is one of the major cities in Maryland with a population of 570,000 (estimated in 2021). The city’s council provides its employed citizens with various services. 
